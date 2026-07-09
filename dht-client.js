@@ -12,6 +12,7 @@ const dht = new DHT()
 const conn = dht.connect(idEnc.decode(KEY))
 
 let received = 0
+let interval
 const start = Date.now()
 
 conn.on('open', () => console.log('connected'))
@@ -29,7 +30,7 @@ conn.on('close', () => {
   clearInterval(interval)
 })
 
-const interval = setInterval(() => {
+interval = setInterval(() => {
   const secs = (Date.now() - start) / 1000
   console.log(`received ${received} bytes in ${secs.toFixed(1)}s (${(received / secs / 1e6).toFixed(1)} MB/s)`)
 }, 1000)
