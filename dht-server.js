@@ -3,6 +3,7 @@ const idEnc = require('hypercore-id-encoding')
 const { Readable } = require('streamx')
 
 const SEED = process.argv[2]
+const DATA_SIZE = 10 * 1024 * 1024 * 1024  // 10GB
 
 function fakeStream (totalBytes, chunkSize = 64 * 1024) {
   const chunk = Buffer.alloc(chunkSize, 'x')
@@ -32,8 +33,8 @@ const server = dht.createServer((conn) => {
     console.warn('DHT error:', err)
   })
 
-  const stream = fakeStream(Infinity)
-  stream.on('error', noop)
+  const stream = fakeStream(DATA_SIZE)
+  stream.on('error', (err) => console.error("Stream error", err))
   conn.on('close', () => stream.destroy())
 
   stream.pipe(conn)
@@ -43,5 +44,3 @@ const keyPair = DHT.keyPair(SEED && Buffer.alloc(32).fill(SEED))
 server.listen(keyPair)
 
 console.log('DHT public key', idEnc.normalize(keyPair.publicKey))
-
-function noop () {}
