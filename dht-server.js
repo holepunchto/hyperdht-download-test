@@ -1,9 +1,9 @@
+#!/usr/bin/env node
+
 const DHT = require('hyperdht')
 const idEnc = require('hypercore-id-encoding')
+const { command, arg, flag } = require('paparam')
 const { Readable } = require('streamx')
-
-const SEED = process.argv[2]
-const DATA_SIZE = 10 * 1024 * 1024 * 1024  // 10GB
 
 function fakeStream (totalBytes, chunkSize = 64 * 1024) {
   const chunk = Buffer.alloc(chunkSize, 'x')
@@ -24,23 +24,39 @@ function fakeStream (totalBytes, chunkSize = 64 * 1024) {
   })
 }
 
-const dht = new DHT()
-const server = dht.createServer((conn) => {
-  console.log('got conn')
+const cmd = command(
+  'dht-server',
+  flag('--seed <seed>|-s <seed>', 'Seed to derive the key pair from'),
+  arg('[data-size]', 'Data size to stream in bytes'),
+  ({ flags, args }) => {
+    const { seed } = flags
+    const { dataSize = 10 * 1024 * 1024 * 1024 } = args // 10GB
+    if (isNaN(+dataSize)) {
+      console.error('Data size must be a number')
+      process.exit(1)
+    }
 
-  conn.on('error', (err) => {
-    if (err.code === 'ECONNRESET' || err.message === 'Writable stream closed prematurely') return
-    console.warn('DHT error:', err)
-  })
+    const dht = new DHT()
+    const server = dht.createServer((conn) => {
+      console.log('got conn')
 
-  const stream = fakeStream(DATA_SIZE)
-  stream.on('error', (err) => console.error("Stream error", err))
-  conn.on('close', () => stream.destroy())
+      conn.on('error', (err) => {
+        if (err.code === 'ECONNRESET' || err.message === 'Writable stream closed prematurely') return
+        console.warn('DHT error:', err)
+      })
 
-  stream.pipe(conn)
-})
+      const stream = fakeStream(dataSize)
+      stream.on('error', (err) => console.error("Stream error", err))
+      conn.on('close', () => stream.destroy())
 
-const keyPair = DHT.keyPair(SEED && Buffer.alloc(32).fill(SEED))
-server.listen(keyPair)
+      stream.pipe(conn)
+    })
 
-console.log('DHT public key', idEnc.normalize(keyPair.publicKey))
+    const keyPair = DHT.keyPair(seed && Buffer.alloc(32).fill(seed))
+    server.listen(keyPair)
+
+    console.log('DHT public key', idEnc.normalize(keyPair.publicKey))
+  }
+)
+
+cmd.parse()
