@@ -31,6 +31,10 @@ const cmd = command(
   ({ flags, args }) => {
     const { seed } = flags
     const { dataSize = 10 * 1024 * 1024 * 1024 } = args // 10GB
+    if (isNaN(+dataSize)) {
+      console.error('Data size must be a number')
+      process.exit(1)
+    }
 
     const dht = new DHT()
     const server = dht.createServer((conn) => {
